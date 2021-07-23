@@ -45,4 +45,8 @@ Each region will have its own Redis and Kafka clusters. However, every region mu
  `---------------------------------------------´
 ```
 
-The fact that we're using Redis sorted sets to keep track of the 100 latest global transactions for a Credit Card, we don't need to merge and sort the transactions recorded ont he two topics in each Kafka cluster: their UTC value will ensure that they are stored in the correct order in Redis.
+The fact that we're using Redis sorted sets to keep track of the 100 latest global transactions for a Credit Card, we don't need to merge and sort the transactions recorded on the two topics in each Kafka cluster: their UTC value will ensure that they are stored in the correct order in Redis.
+
+# Scalability and High-Availability
+
+The nature of the Score service implies that the ratio of Redis read operations to write operations is 1:1, since every time we read the aggregates of a Credit Card we will also register the new transaction. The reads must happen faster than the writes, though, because we want to provide score responses within 100ms. Also, a high volume of requests is unlikely to be associated to the same Credit Card. In summary, the Redis cluster will be made of a master server (for write operations from the Kafka consumer) and read replicas, used by the Score service to fetch the aggregates.
