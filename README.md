@@ -50,3 +50,9 @@ The fact that we're using Redis sorted sets to keep track of the 100 latest glob
 # Scalability and High-Availability
 
 The nature of the Score service implies that the ratio of Redis read operations to write operations is 1:1, since every time we read the aggregates of a Credit Card we will also register the new transaction. The reads must happen faster than the writes, though, because we want to provide score responses within 100ms. Also, a high volume of requests is unlikely to be associated to the same Credit Card. In summary, the Redis cluster will be made of a master server (for write operations from the Kafka consumer) and read replicas, used by the Score service to fetch the aggregates.
+
+The main Data Store is used to retrieve aggregate information for a Credit Card in case it doesn't exist in Redis yet (e.g. when we spin up a new region). For the sake of data locality, the main Data Store will have cross-region replication, where each region will fetch data from the corresponding read-replica.
+
+# Fault-tolerance
+
+On the event of service disruption in a particular region, the initial step of name resolution can still return the IP address of the Load-Balancer of the closest available region. This will, however, have an impact on the latency (the Payment Provider can decide to proceed if it doesn't get a response from us within 100ms).
