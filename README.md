@@ -30,3 +30,7 @@ Step number 2 is critical because it is responsible for recording that a transac
 
 1. Records the transaction to the **Main Data Store**.
 2. Updates the aggregated information in Redis (more on this later).
+
+## Keeping track of global transactions with Kafka Mirror
+
+Each region will have its own Redis and Kafka clusters. However, every region must have the same "view of the world" (eventually). The Kafka cluster will ensure that this happens, within a reasonable amount of time, by replicating certain topics. Effectively, the cluster in each region will have (at least) two topics: one to register what happens in that region and another that registers what happens in every other region. Let's call this second topic the **Mirror topic**. Once a Payment Provider makes an HTTP request, the transaction is recorded in Kafka, on the topic with events for that particular region. However, the transactions recorded in this topic will also be *mirrored* to the **Mirror topic** of all the other regions. The Kafka cluster on each region will also have a process consuming new transactions that arrive at the **Mirror topic** and store them in Redis.
