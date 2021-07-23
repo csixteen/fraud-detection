@@ -6,4 +6,4 @@ What follows is the proposal for a fully distributed and fault-tolerant fraud de
 
 The following diagram should give a birds-eye view of the proposed architecture.
 
-[img](architecture.png)
+![alt text](architecture.png "Architectural diagram")
