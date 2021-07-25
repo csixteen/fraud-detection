@@ -57,11 +57,12 @@ The aggregated information for Credit Cards needs to be updated every time a tra
 
 ## Keeping global state
 
+As mentioned previously, each region should be self-sufficient to provide fraud scores to the Payment Providers. This means that each region must know what is happening in the other regions, and in the end all the regions must share the same global view. This is where Kafka mirroring comes in. Effectively, the Kafka Cluster in each region will have (at least) two topics: one topic that registers events that take place on that region (the *regional topic*) and another topic that mirrors (or replicates) what is happening in the other regions. The consumer processes on each topic will then write to the Redis master of the regional cluster, but **only** the consumer of the regional topic will write to the main Data Store. The reason for this is that whatever comes from the other regions has already been recorded by the consumer in that particular region (thus we can avoid unnecessary writes against the data store).
+
 ![alt text](img/KafkaMirror.svg "Kafka mirror")
 
-Each region will have its own Redis and Kafka clusters. However, every region must have the same "view of the world" (eventually). The Kafka cluster will ensure that this happens, within a reasonable amount of time, by replicating certain topics. Effectively, the cluster in each region will have (at least) two topics: one to register what happens in that region and another that registers what happens in every other region. Let's call this second topic the **Mirror topic**. Once a Payment Provider makes an HTTP request, the transaction is recorded in Kafka, on the topic with events for that particular region. However, the transactions recorded in this topic will also be *mirrored* to the **Mirror topic** of all the other regions. The Kafka cluster on each region will also have a process consuming new transactions that arrive at the **Mirror topic** and store them in Redis.
+The advantage of using Redis Sorted Sets for aggregated information is that we won't have to merge and sort the events from both topics on each region: the score (UTC of each transaction) does the sorting for us automatically.
 
-The fact that we're using Redis sorted sets to keep track of the 100 latest global transactions for a Credit Card, we don't need to merge and sort the transactions recorded on the two topics in each Kafka cluster: their UTC value will ensure that they are stored in the correct order in Redis.
 
 # Scalability and High-Availability
 
