@@ -6,17 +6,17 @@ What follows is the proposal for a fully distributed and fault-tolerant fraud de
 
 The following diagram should give a birds-eye view of the proposed architecture.
 
-![alt text](architecture2.svg "Architectural diagram")
+![alt text](img/architecture2.svg "Architectural diagram")
 
 ## Geo DNS
 
-![alt text](GeoDNS.svg "Geo DNS")
+![alt text](img/GeoDNS.svg "Geo DNS")
 
 Before any request can be made from the Payment Providers to FraudIO's API, a name resolution needs to take place. For the sake of simplicity, let's assume that hostname for the API is `api.fraudio.com`. Name resolvers can return A or AAAA records based on pre-defined policies, such as the geographic location of the querier. This will ensure that the Payment Provider speaks with the Score service in its own region, hence keeping the latency as low as possible.
 
 ## Redis for the aggregates
 
-![alt text](Redis.svg "Redis aggregates")
+![alt text](img/Redis.svg "Redis aggregates")
 
 Once the Payment Provider knows which endopint it can speak to, it can make an HTTP request with information about the transaction.The Score service then fetches the last 100 transactions made globally with that particular Credit Card. This information will live in Redis, since its retrieval must be as fast as possible.
 
@@ -24,7 +24,7 @@ Redis sorted sets allow us to keep a set of IDs (strings) ordered by scores. In 
 
 ## Event sourcing with Kafka
 
-![alt text](EventSourcing.svg "Event sourcing")
+![alt text](img/EventSourcing.svg "Event sourcing")
 
 Once a transaction is sent to the Score service, three things will happen:
 
@@ -39,7 +39,7 @@ Step number 2 is critical because it is responsible for recording that a transac
 
 ## Keeping track of global transactions with Kafka Mirror
 
-![alt text](KafkaMirror.svg "Kafka mirror")
+![alt text](img/KafkaMirror.svg "Kafka mirror")
 
 Each region will have its own Redis and Kafka clusters. However, every region must have the same "view of the world" (eventually). The Kafka cluster will ensure that this happens, within a reasonable amount of time, by replicating certain topics. Effectively, the cluster in each region will have (at least) two topics: one to register what happens in that region and another that registers what happens in every other region. Let's call this second topic the **Mirror topic**. Once a Payment Provider makes an HTTP request, the transaction is recorded in Kafka, on the topic with events for that particular region. However, the transactions recorded in this topic will also be *mirrored* to the **Mirror topic** of all the other regions. The Kafka cluster on each region will also have a process consuming new transactions that arrive at the **Mirror topic** and store them in Redis.
 
