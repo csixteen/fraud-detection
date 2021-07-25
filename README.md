@@ -31,18 +31,20 @@ Redis allows us to store information using different data structures, in particu
 
 ## Event sourcing with Kafka
 
+Once the Payment Provider sends a transaction to the Score service, a few things will happen:
+
+1. The aggregated data for that particular Credit Card is fetched from Redis (as explained in the previous section).
+2. An event (the transaction) is recorded.
+3. The aggregated data and the transaction features are fed into the ML model to retrieve the score, which is then returned as an HTTP response.
+
 ![alt text](img/EventSourcing.svg "Event sourcing")
 
-Once a transaction is sent to the Score service, three things will happen:
-
-1. The aggregated data (last 100 global transactions) for that particular Credit Card will be retrieved from Redis.
-2. An event (the transaction) is recorded.
-3. The aggregated data and the transaction features are fed into the model to retrieve a score, which is immediately returned as a response to the HTTP request.
-
-Step number 2 is critical because it is responsible for recording that a transaction took place without affecting the latency of the overall response. The best way to achieve this is in a "fire and forget" fashion. In short, the transaction data will be published to a particular topic in Kafka, which will then be consumed by a process that:
+Step number 2 is critical because it is responsible for recording that a transaction took place, without affecting the overall latency of the response. The best way to achieve this is in a "fire and forget" fashion. In short, the transaction data will be published to a particular topic in Kafka, which will then be consumed by a process that:
 
 1. Records the transaction to the **Main Data Store**.
-2. Updates the aggregated information in Redis (more on this later).
+2. Updates the aggregated information in Redis (and also stores that particular transaction as an individual object).
+
+The aggregated information for Credit Cards needs to be updated every time a transaction for that CC occurs. This means that the same transaction for which we want to get a score also needs to be stored. Instead of writing immediately to Redis and then to Kafka, we can simply write **only** to Kafka, to the regional topic (a topic that registers events that happen on that particular region). The consumers of that topic will then write the transaction to the Redis master as well as to the main Data Store. This introduces a bit of latency when registering the new transaction, but ensures that the score response is sent as quickly as possible to the Payment Provider.
 
 ## Keeping track of global transactions with Kafka Mirror
 
