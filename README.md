@@ -6,7 +6,7 @@ What follows is the proposal for a fully distributed and fault-tolerant fraud de
 
 The following diagram should give a birds-eye view of the proposed architecture.
 
-![alt text](architecture.png "Architectural diagram")
+![alt text](architecture2.svg "Architectural diagram")
 
 ## Geo DNS
 
