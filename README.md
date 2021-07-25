@@ -11,7 +11,8 @@ What follows is a proposal for a fully distributed and fault-tolerant fraud dete
    3. [Event sourcing with Kafka](#event-sourcing-with-kafka)
    4. [Keeping global state](#keeping-global-state)
 3. [Decisions and trade-offs](#design-decisions-and-trade-offs)
-4. [References](#references)
+4. [Redis optimizations](#redis-optimizations)
+5. [References](#references)
 
 # High-level overview
 
@@ -69,6 +70,45 @@ The advantage of using Redis Sorted Sets for aggregated information is that we w
 Any solution to this problem will suffer from (at least) one limitation that impacts the speed at which information is transmitted: the speed of light. A round-trip between San Francisco and Amsterdam takes roughly 150ms, which means that once a transaction takes place it's physically impossible for all the regions to register it immediately.
 
 The proposed solution introduces potentially more complexity when compared to a fully centralized solution, since each region has its own Redis and Kafka cluster, and all the Kafka clusters mirror to each other. However, this also means that on the event of network partitioning, the service can still operate and provide low latency responses and fairly accurate scores, which keeping the number of cross-region requests to a minimum.
+
+Besides extra complexity, the proposed solution can be potentially more expensive, since we replicate the same amount of data in every region. In this case, the main potential source of extra costs would be the Redis clusters, but there are several things that can be done in order to keep the expenses to an acceptable minimum (see next section).
+
+# Redis optimizations
+
+Redis plays a crucial role, since it allows us to quickly fetch aggregate data to be used by the ML model. However, since we need to have global data in order to detect fraudulent transactions, this can become quite expensive if we're not careful.
+
+Here are some of the things that can be done in order to accomodate for an increase in transactions while keeping latencies low:
+
+## Use Lists to store transactions instead of Hashes
+
+When using Hashes to store a single transaction object, both keys and values consume storage space. If the transactions have a schema that barely changes, then we are repeating information unnecessarily with the field names. Take the following JSON representation of a transaction as an example:
+
+```json
+{
+  "timestamp": 1627224482,
+  "credit_card": "XXXXYYYYZZZZWWWW",
+  "currency": "GBP",
+  "amount": 100.5
+}
+```
+
+A ballpark estimate of space for storing such transaction in Redis is ~90 bytes. If we want to store 1 billion of such transactions, it takes roughly 83GB of storage space, where almost half of it is dedicated to the repeated keys. Instead, we can store the transaction as a list of values and the field names become indices in the list.
+
+## Compress field names in Hashes
+
+If storing transactions as a list is not an option, we can still opt for smaller key names. For example:
+
+```
+credit_card -> cc  # saves 9 bytes
+currency -> cur    # saves 5 bytes
+amount -> total    # saves 1 byte
+```
+
+By saving 15 bytes on a single Hash, we save 13 GB when we store 1 billion of Hashes.
+
+## Use eval + Lua scripting
+
+In order to retrieve the aggregated data for a Credit Card, we must first identity the correct Sorted Set, then use Redis `ZRANGE` command to retrieve the transaction IDs ordered by score and then we retrieve each single transaction object identified by those IDs. Retrieving the IDs requires one call to Redis and retrieving all the individual objects can be done using Redis pipeline, making it a total of 2 calls to the Redis server. However, if all the keys related to a single Credit Card are stored on the same server (if we use Redis cluster, for example), then we can script the above logic in Lua, send a string to the server and call it with the `EVAL` command. This logic will be executed in the server, is much faster and only requires one single request to Redis.
 
 # References
 
