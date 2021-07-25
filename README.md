@@ -24,6 +24,8 @@ Redis sorted sets allow us to keep a set of IDs (strings) ordered by scores. In 
 
 ## Event sourcing with Kafka
 
+![alt text](EventSourcing.svg "Event sourcing")
+
 Once a transaction is sent to the Score service, three things will happen:
 
 1. The aggregated data (last 100 global transactions) for that particular Credit Card will be retrieved from Redis.
