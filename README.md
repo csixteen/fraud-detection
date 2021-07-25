@@ -9,15 +9,17 @@ In a nutshell, each region will be self-sufficient in order to provide fraud sco
 
 ![alt text](img/architecture2.svg "Architectural diagram")
 
-Finally, there is a main Data Store that stores all the transactions made globally by all the Credit Cars. This data can be used to warm-up Redis cache (e.g. we we spin up a new region) as well as serve other purposes (e.g. some batch processes). The main Data Store has cross-region replication. This means that each region reads data from the regional read-replica, but writes data to a single master node.
+Finally, there is a main Data Store that stores all the transactions made globally by all the Credit Cars. This data can be used to warm up Redis cache (e.g. we we spin up a new region) as well as serve other purposes (e.g. some batch processes). The main Data Store has cross-region replication. This means that each region reads data from the regional read-replica, but writes data to a single master node.
 
 # Architecture deep-dive
 
 ## Geo DNS
 
+Before the Payment Providers can speak to Fraudio's API, they need to know its location (IP address). Instead of having the name resolution return A or AAAA records for any of the load-balancers, we can use GeoDNS instead.
+
 ![alt text](img/GeoDNS.svg "Geo DNS")
 
-Before any request can be made from the Payment Providers to FraudIO's API, a name resolution needs to take place. For the sake of simplicity, let's assume that hostname for the API is `api.fraudio.com`. Name resolvers can return A or AAAA records based on pre-defined policies, such as the geographic location of the querier. This will ensure that the Payment Provider speaks with the Score service in its own region, hence keeping the latency as low as possible.
+GeoDNS will ensure that we can keep the latency to a minimum, by encouraging clients to speak with the nearest load-balancer (I mean encouraging because on the event of a full regional failure, the name resolution should still return records for the nearst non-regional load-balancer). As shown in the picture above, if the DNS resolve query originates in France, then the query response will contain A or AAAA records for `eu*.api.fraudio.com`. This is preferable to having the Payment Providers speak directly to `<region>.api.fraudio.com`, as it would force them to have knowledge of name schemas. It also gives us more control, as we can decide what routing policies to apply.
 
 ## Redis for the aggregates
 
