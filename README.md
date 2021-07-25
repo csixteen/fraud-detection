@@ -39,17 +39,9 @@ Step number 2 is critical because it is responsible for recording that a transac
 
 ## Keeping track of global transactions with Kafka Mirror
 
-Each region will have its own Redis and Kafka clusters. However, every region must have the same "view of the world" (eventually). The Kafka cluster will ensure that this happens, within a reasonable amount of time, by replicating certain topics. Effectively, the cluster in each region will have (at least) two topics: one to register what happens in that region and another that registers what happens in every other region. Let's call this second topic the **Mirror topic**. Once a Payment Provider makes an HTTP request, the transaction is recorded in Kafka, on the topic with events for that particular region. However, the transactions recorded in this topic will also be *mirrored* to the **Mirror topic** of all the other regions. The Kafka cluster on each region will also have a process consuming new transactions that arrive at the **Mirror topic** and store them in Redis.
+![alt text](KafkaMirror.svg "Kafka mirror")
 
-```
-       Region A                  Region B
-    ---------------          ----------------
- +>  regional topic           regional topic
- |  ---------------          ----------------            ...
- |   mirror topic             mirror topic    <+
- |  ---------------          ----------------  |
- `---------------------------------------------´
-```
+Each region will have its own Redis and Kafka clusters. However, every region must have the same "view of the world" (eventually). The Kafka cluster will ensure that this happens, within a reasonable amount of time, by replicating certain topics. Effectively, the cluster in each region will have (at least) two topics: one to register what happens in that region and another that registers what happens in every other region. Let's call this second topic the **Mirror topic**. Once a Payment Provider makes an HTTP request, the transaction is recorded in Kafka, on the topic with events for that particular region. However, the transactions recorded in this topic will also be *mirrored* to the **Mirror topic** of all the other regions. The Kafka cluster on each region will also have a process consuming new transactions that arrive at the **Mirror topic** and store them in Redis.
 
 The fact that we're using Redis sorted sets to keep track of the 100 latest global transactions for a Credit Card, we don't need to merge and sort the transactions recorded on the two topics in each Kafka cluster: their UTC value will ensure that they are stored in the correct order in Redis.
 
