@@ -10,6 +10,7 @@ What follows is a proposal for a fully distributed and fault-tolerant fraud dete
    2. [Redis for the aggregates](#redis-for-the-aggregates)
    3. [Event sourcing with Kafka](#event-sourcing-with-kafka)
    4. [Keeping global state](#keeping-global-state)
+3. [References](#references)
 
 # High-level overview
 
@@ -71,3 +72,10 @@ The main Data Store is used to retrieve aggregate information for a Credit Card 
 # Fault-tolerance
 
 On the event of service disruption in a particular region, the initial step of name resolution can still return the IP address of the Load-Balancer of the closest available region. This will, however, have an impact on the latency (the Payment Provider can decide to proceed if it doesn't get a response from us within 100ms).
+
+# References
+
+- [Amazon Route53 routing policies](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy.html)
+- [Kafka Geo-Replication](https://kafka.apache.org/documentation.html#georeplication)
+- [Using Lua to implement multi-get on Redis hashes](https://beforeitwasround.com/2014/07/using-lua-to-implement-multi-get-on-redis-hashes.html)
+- [Memory Optimization for Redis](https://docs.redislabs.com/latest/ri/memory-optimizations/)
