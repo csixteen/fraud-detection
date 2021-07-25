@@ -7,6 +7,9 @@ What follows is a proposal for a fully distributed and fault-tolerant fraud dete
 1. [High-level overview](#high-level-overview)
 2. [Architecture deep-dive](#architecture-deep-dive)
    1. [Geo DNS](#geo-dns)
+   2. [Redis for the aggregates](#redis-for-the-aggregates)
+   3. [Event sourcing with Kafka](#event-sourcing-with-kafka)
+   4. [Keeping global state](#keeping-global-state)
 
 # High-level overview
 
@@ -51,7 +54,7 @@ Step number 2 is critical because it is responsible for recording that a transac
 
 The aggregated information for Credit Cards needs to be updated every time a transaction for that CC occurs. This means that the same transaction for which we want to get a score also needs to be stored. Instead of writing immediately to Redis and then to Kafka, we can simply write **only** to Kafka, to the regional topic (a topic that registers events that happen on that particular region). The consumers of that topic will then write the transaction to the Redis master as well as to the main Data Store. This introduces a bit of latency when registering the new transaction, but ensures that the score response is sent as quickly as possible to the Payment Provider.
 
-## Keeping track of global transactions with Kafka Mirror
+## Keeping global state
 
 ![alt text](img/KafkaMirror.svg "Kafka mirror")
 
