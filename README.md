@@ -5,9 +5,11 @@ What follows is a proposal for a fully distributed and fault-tolerant fraud dete
 
 # High-level overview
 
-TODO
+In a nutshell, each region will be self-sufficient in order to provide fraud scores to transactions, as requested by Payment Providers. Each region will have its own Redis cluster, used to provide and store aggregates per Credit Card, as well its own Kafka cluster. The purpose of the Kafka cluster is to make sure that each region has a global view of all the transactions for all the Credit Cards in near-realtime.
 
 ![alt text](img/architecture2.svg "Architectural diagram")
+
+Finally, there is a main Data Store that stores all the transactions made globally by all the Credit Cars. This data can be used to warm-up Redis cache (e.g. we we spin up a new region) as well as serve other purposes (e.g. some batch processes). The main Data Store has cross-region replication. This means that each region reads data from the regional read-replica, but writes data to a single master node.
 
 # Architecture deep-dive
 
