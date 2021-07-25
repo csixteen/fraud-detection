@@ -10,7 +10,8 @@ What follows is a proposal for a fully distributed and fault-tolerant fraud dete
    2. [Redis for the aggregates](#redis-for-the-aggregates)
    3. [Event sourcing with Kafka](#event-sourcing-with-kafka)
    4. [Keeping global state](#keeping-global-state)
-3. [References](#references)
+3. [Decisions and trade-offs](#design-decisions-and-trade-offs)
+4. [References](#references)
 
 # High-level overview
 
@@ -61,22 +62,20 @@ As mentioned previously, each region should be self-sufficient to provide fraud 
 
 ![alt text](img/KafkaMirror.svg "Kafka mirror")
 
-The advantage of using Redis Sorted Sets for aggregated information is that we won't have to merge and sort the events from both topics on each region: the score (UTC of each transaction) does the sorting for us automatically.
+The advantage of using Redis Sorted Sets for aggregated information is that we won't have to merge and sort the events from both topics on each region before inserting: the score (UTC of each transaction) does the sorting for us automatically implicitly (when inserting a key / score pair in a Sorted Set, the insert is sorted and takes `O(N*log(N))`).
 
+# Design decisions and trade-offs
 
-# Scalability and High-Availability
+Any solution to this problem will suffer from (at least) one limitation that impacts the speed at which information is transmitted: the speed of light. A round-trip between San Francisco and Amsterdam takes roughly 150ms, which means that once a transaction takes place it's physically impossible for all the regions to register it immediately.
 
-The nature of the Score service implies that the ratio of Redis read operations to write operations is 1:1, since every time we read the aggregates of a Credit Card we will also register the new transaction. The reads must happen faster than the writes, though, because we want to provide score responses within 100ms. Also, a high volume of requests is unlikely to be associated to the same Credit Card. In summary, the Redis cluster will be made of a master server (for write operations from the Kafka consumer) and read replicas, used by the Score service to fetch the aggregates.
-
-The main Data Store is used to retrieve aggregate information for a Credit Card in case it doesn't exist in Redis yet (e.g. when we spin up a new region). For the sake of data locality, the main Data Store will have cross-region replication, where each region will fetch data from the corresponding read-replica.
-
-# Fault-tolerance
-
-On the event of service disruption in a particular region, the initial step of name resolution can still return the IP address of the Load-Balancer of the closest available region. This will, however, have an impact on the latency (the Payment Provider can decide to proceed if it doesn't get a response from us within 100ms).
+The proposed solution introduces potentially more complexity when compared to a fully centralized solution, since each region has its own Redis and Kafka cluster, and all the Kafka clusters mirror to each other. However, this also means that on the event of network partitioning, the service can still operate and provide low latency responses and fairly accurate scores, which keeping the number of cross-region requests to a minimum.
 
 # References
 
 - [Amazon Route53 routing policies](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy.html)
 - [Kafka Geo-Replication](https://kafka.apache.org/documentation.html#georeplication)
+- [Kafka MirrorMaker best practices](https://community.cloudera.com/t5/Community-Articles/Kafka-Mirror-Maker-Best-Practices/ta-p/249269)
 - [Using Lua to implement multi-get on Redis hashes](https://beforeitwasround.com/2014/07/using-lua-to-implement-multi-get-on-redis-hashes.html)
+- [Latency numbers every programmer should know](https://github.com/donnemartin/system-design-primer#latency-numbers-every-programmer-should-know)
 - [Memory Optimization for Redis](https://docs.redislabs.com/latest/ri/memory-optimizations/)
+- [AWS Latency Monitoring](https://www.cloudping.co/grid)
