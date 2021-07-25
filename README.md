@@ -1,12 +1,15 @@
 # Fraud Detection
 
-What follows is the proposal for a fully distributed and fault-tolerant fraud detection system.
 
-# Architecture Overview
+What follows is a proposal for a fully distributed and fault-tolerant fraud detection system. I will start by providing a high-level explanation of the proposed architecture. Then, I'll do a deep dive into what I consider to be the crucial aspects that guarantee low latency responses while honoring the commitment of providing accurate fraud scores. I will also contrast the proposed architecture against other potential solutions and explain the trade-offs. Finally, I'll dedicate a section to propose some memory optimizations for Redis.
 
-The following diagram should give a birds-eye view of the proposed architecture.
+# High-level overview
+
+TODO
 
 ![alt text](img/architecture2.svg "Architectural diagram")
+
+# Architecture deep-dive
 
 ## Geo DNS
 
