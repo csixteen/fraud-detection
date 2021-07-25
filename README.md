@@ -9,7 +9,7 @@ In a nutshell, each region will be self-sufficient in order to provide fraud sco
 
 ![alt text](img/architecture2.svg "Architectural diagram")
 
-Finally, there is a main Data Store that stores all the transactions made globally by all the Credit Cars. This data can be used to warm up Redis cache (e.g. we we spin up a new region) as well as serve other purposes (e.g. some batch processes). The main Data Store has cross-region replication. This means that each region reads data from the regional read-replica, but writes data to a single master node.
+Finally, there is a main Data Store that stores all the transactions made globally by all the Credit Cards. This data can be used to warm up Redis cache (e.g. we we spin up a new region) as well as serve other purposes (e.g. some batch processes). The main Data Store has cross-region replication. This means that each region reads data from the regional read-replica, but writes data to a single master node.
 
 # Architecture deep-dive
 
@@ -23,11 +23,11 @@ GeoDNS will ensure that we can keep the latency to a minimum, by encouraging cli
 
 ## Redis for the aggregates
 
+Once the Payment Provider knows which endpoint it can speak to, it can make an HTTP request with the transaction. This HTTP request will be load-balanced to any of the Score services in that region, as they are stateless (hence horizontally scalable). The Score service, once receiving the transaction, asks Redis for the last 100 transactions made globally with that particular Credit Card. This information will be spreaded across a few different objects in Redis, but can be fetch in a single request. The read-replica is used for this purpose. The transaction must also be recorded, so the Score service writes the event (representing the transaction) to Kafka (more about this on the next section) and returns the response to the Payment Provider.
+
 ![alt text](img/Redis.svg "Redis aggregates")
 
-Once the Payment Provider knows which endopint it can speak to, it can make an HTTP request with information about the transaction.The Score service then fetches the last 100 transactions made globally with that particular Credit Card. This information will live in Redis, since its retrieval must be as fast as possible.
-
-Redis sorted sets allow us to keep a set of IDs (strings) ordered by scores. In Redis, a score is stored as a **double 64-bit floating point** number, giving us enough room for UTC timestamps (representing the time when the transaction took place). In a nutshell, each credit card will have its own sorted set where the ID is a transaction ID and the score is the UTC time when the transaction took place.
+Redis allows us to store information using different data structures, in particular Sorted Sets. A sorted set is a dictionary that maps keys (strings) to scores (64-bit floating point numbers), keeping the keys ordered by score. For our use case, each key is the transaction ID and the score is the UTC timestamp that represents the exact moment the transaction took place. On the other hand, each transaction needs to be stored as an individual object (e.g. a Hash). Thus, fetching the last 100 transactions for a Credit Card involves identifying the right sorted (the key that identifies the sorted set can be the Credit Card number), returning the last 100 IDs ordered by score in reverse order (from most to least recent) and returning the objects associated to each of those IDs. This can be achieve either with 2 requests (if we use Redis *pipelines* for the second part) or one single request (if we use Redis *eval* with a Lua script).
 
 ## Event sourcing with Kafka
 
