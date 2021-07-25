@@ -10,6 +10,8 @@ The following diagram should give a birds-eye view of the proposed architecture.
 
 ## Geo DNS
 
+![alt text](GeoDNS.svg "Geo DNS")
+
 Before any request can be made from the Payment Providers to FraudIO's API, a name resolution needs to take place. For the sake of simplicity, let's assume that hostname for the API is `api.fraudio.com`. Name resolvers can return A or AAAA records based on pre-defined policies, such as the geographic location of the querier. This will ensure that the Payment Provider speaks with the Score service in its own region, hence keeping the latency as low as possible.
 
 ## Redis for the aggregates
