@@ -63,7 +63,7 @@ As mentioned previously, each region should be self-sufficient to provide fraud 
 
 ![alt text](img/KafkaMirror.svg "Kafka mirror")
 
-The advantage of using Redis Sorted Sets for aggregated information is that we won't have to merge and sort the events from both topics on each region before inserting: the score (UTC of each transaction) does the sorting for us automatically implicitly (when inserting a key / score pair in a Sorted Set, the insert is sorted and takes `O(N*log(N))`).
+The advantage of using Redis Sorted Sets for aggregated information is that we won't have to merge and sort the events from both topics on each region before inserting: the score (UTC of each transaction) does the sorting for us automatically implicitly (when inserting a key / score pair in a Sorted Set, the insert is sorted and takes `O(log(N))`).
 
 # Design decisions and trade-offs
 
